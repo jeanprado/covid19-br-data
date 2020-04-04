@@ -53,6 +53,8 @@ covid %>% group_by(data) %>% summarize_casos() %>%
   mutate(type=fct_relevel(type, 'obitos', 'casos', 'casos_novos', 'obitos_novos')) %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>%
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
+      geom_text(data=filter(., type %in% c('casos_novos', 'casos'), n>=200),
+                aes(label=th(round(n, digits=1))), vjust=-1, size=3) + coord_cartesian(clip = "off") +
       scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
       scale_color_manual(values=c("#FF5656", "#F18853", "#E4B250", "#873053"),
                          labels=c(obitos="Óbitos", casos="Casos", casos_novos="Novos casos", obitos_novos="Novos óbitos"),
