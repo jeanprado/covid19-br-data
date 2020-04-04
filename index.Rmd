@@ -1,0 +1,84 @@
+---
+title: "Covid-19 no Brasil"
+author: "por Jean Prado"
+date: "`r paste0('*atualizado em ', tolower(format(Sys.time(), format='%D às %Hh%M*')))`"
+output:
+  html_document:
+    theme: cosmo
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.height = 8, fig.width=10)
+
+library(tidyverse)
+library(lubridate)
+```
+
+```{r load_data, include=FALSE, cache=TRUE}
+url <- paste0('https://covid.saude.gov.br/assets/files/COVID19_', format(today(), "%Y%m%d"), '.csv')
+url <- 'https://mobileapps.saude.gov.br/esus-vepi/files/unAFkcaNDeXajurGB7LChj8SgQYS2ptm/89855f6071621391a2ae420824458ac6_Download_COVID19_20200403.csv'
+
+corona <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=dmy(data)) %>% rename(uf=estado,
+                                                               casos=casos_acumulados,
+                                                               obitos=obitos_acumulados) %>% 
+  left_join(read_csv('pop_br_2019.csv') %>% group_by(uf) %>%
+              summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
+
+remove_lines <- theme_minimal() +
+  theme(panel.grid.minor = ggplot2::element_blank(),
+        panel.grid.major.y = ggplot2::element_line(color="#eeeeee"),
+        panel.grid.major.x = ggplot2::element_blank(),
+        text=element_text(family="Helvetica", size=12),
+        title=element_text(family="Helvetica", size=15))
+
+summarize_casos <- function(data) data %>% summarize(casos=sum(casos), obitos=sum(obitos),
+                                                     casos_novos=sum(casos_novos), obitos_novos=sum(obitos_novos))
+
+summarize_prop <- function(data) data %>% summarize_casos() %>% 
+  mutate(casos_prop=casos/pop*1000000, casos_novos_prop=casos_novos/pop*1000000,
+         obitos_novos_prop=obitos_novos/pop*1000000, obitos_prop=obitos/pop*1000000)
+```
+
+
+# Série temporal
+```{r time_series}
+time_series <- function() list(geom_line(), geom_point(), remove_lines,
+                               scale_x_date(date_breaks = "1 day", date_labels="%d/%m"), theme(legend.position='top'))
+
+corona %>% group_by(data) %>% summarize_casos() %>%  
+  pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>% mutate(type=fct_relevel(type, 'obitos', 'casos',
+                                                                                             'casos_novos', 'obitos_novos')) %>% 
+  filter(month(data) >= 3) %>% ggplot(aes(data, n, color=type)) + time_series()
+```
+
+# Série temporal (por estado)
+```{r time_series_uf}
+corona %>% group_by(data, uf, pop) %>% summarize_prop() %>%
+  filter(month(data) >= 3, casos_novos > 10) %>%
+  ggplot(aes(data, casos_novos, color=uf)) + time_series()
+```
+
+# Dados mais recentes
+```{r plot_corona, echo=FALSE, message=FALSE, warning=FALSE}
+plot_corona <- function(data, metric) {
+  hex <- "#0390fc"
+  type <- if (str_detect(metric, "casos")) "casos de" else "mortes por"
+  new_type <- if (str_detect(metric, '^casos_novos')) "novos " else if (str_detect(metric, '^obitos_novos')) "novas "
+  is_prop <- if (str_detect(metric, "_prop")) ", a cada 1 milhão de habitantes"
+  
+  ggplot(data, aes(fct_reorder(uf, -data[[metric]]), data[[metric]])) + geom_col(fill=hex) +
+    geom_text(aes(label=round(data[[metric]], digits=1)), vjust=-1, color=hex) + coord_cartesian(clip = "off") +
+  remove_lines + labs(x="", y="", title=paste0(new_type, type, " Covid-19 no Brasil"),
+                      subtitle=paste0('por estado', is_prop),
+                      caption=paste0("dados por Ministério da Saúde. Atualizado em ", format(today(), '%D')))
+}
+
+covid_prop <- corona %>% filter(data==first(corona[["data"]])) %>% group_by(uf, pop) %>% summarize_prop()
+
+cols <- names(covid_prop)[-1:-2]
+cols <- set_names(cols)
+
+map(cols, ~plot_corona(covid_prop, .))
+```
+
