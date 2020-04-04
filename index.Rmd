@@ -1,11 +1,10 @@
 ---
-title: "Covid-19 no Brasil"
+title: "Dados sobre Covid-19 no Brasil"
 author: "por Jean Prado"
 date: "`r paste0('*atualizado em ', tolower(format(Sys.time(), format='%D%y às %Hh%M*')))`"
 output:
   html_document:
     theme: cosmo
-    toc: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -30,7 +29,7 @@ remove_lines <- theme_minimal() +
   theme(panel.grid.minor = ggplot2::element_blank(),
         panel.grid.major.y = ggplot2::element_line(color="#eeeeee"),
         panel.grid.major.x = ggplot2::element_blank(),
-        text=element_text(family="Helvetica", size=11),
+        text=element_text(family="Helvetica", size=12),
         title=element_text(family="Helvetica", size=14))
 
 th <- function(x) format(x, big.mark=".", decimal.mark=",")
@@ -42,52 +41,69 @@ summarize_prop <- function(data) data %>% summarize_casos() %>%
   mutate(casos_prop=casos/pop*1000000, casos_novos_prop=casos_novos/pop*1000000,
          obitos_novos_prop=obitos_novos/pop*1000000, obitos_prop=obitos/pop*1000000)
 
-time_series <- function() list(geom_line(), geom_point(), remove_lines, labs(color=NULL), theme(legend.position='top'))
+time_series <- function() list(geom_line(show.legend = F), geom_point(), remove_lines, labs(color=NULL),
+                               theme(legend.position='top'), scale_y_continuous(labels=function(x) th(x)))
 ```
 
 
-# Série temporal
+# **Evolução dos casos**
 ```{r time_series, fig.height=6}
 covid %>% group_by(data) %>% summarize_casos() %>%  
-  pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>% mutate(type=fct_relevel(type, 'obitos', 'casos',
-                                                                                             'casos_novos', 'obitos_novos')) %>% 
-  filter(data %in% seq(today()-21, today(), by=1)) %>% { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
-  scale_color_discrete(labels=c(obitos="Óbitos", casos="Casos", casos_novos="Novos casos", obitos_novos="Novos óbitos")) +
-      scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m")}
+  pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>%
+  mutate(type=fct_relevel(type, 'obitos', 'casos', 'casos_novos', 'obitos_novos')) %>%
+  filter(data %in% seq(today()-21, today(), by=1)) %>%
+  { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
+      scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
+      scale_color_manual(values=c("#FF5656", "#F18853", "#E4B250", "#873053"),
+                         labels=c(obitos="Óbitos", casos="Casos", casos_novos="Novos casos", obitos_novos="Novos óbitos"),
+                         guide=guide_legend(override.aes = list(shape='square', size=6))) }
 ```
 
-# Novos casos por estado e região
+# **Novos casos por estado e região**
 
-*A escala dos gráficos por região estão em escalas diferentes.
-```{r time_series_uf, fig.height=15}
+Esses gráficos focam no **crescimento diário do número de casos**, não no crescimento total. Por isso, representam o número de novos casos em relação ao dia anterior.
+
+*Os gráficos de cada região estão em escalas diferentes.
+```{r time_series_uf, fig.height=18}
 covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>% 
   filter(data %in% seq(today()-21, today(), by=1)) %>% group_by(regiao) %>% group_split() %>% 
-  map(~ggplot(., aes(data, casos_novos, color=uf)) + time_series() + scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") +
+  map(~ggplot(., aes(data, casos_novos, color=uf)) + time_series() +
+        scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") +
+        scale_color_manual(values=rev(c("#ff5656", "#fd8557", "#fcb457", "#e2f556",
+                                    "#83eb53", "#4ddb70", "#45c4ac", "#3b7fa7", "#303687")),
+                           guide=guide_legend(override.aes = list(shape='square', size=6))) +
         labs(x=NULL, y=NULL, color=NULL, title=unique(.[["regiao"]]))) %>% wrap_plots(ncol=1)
 ```
 
-# Dados mais recentes
-```{r plot_covid, fig.height=36}
-plot_covid <- function(data, metric) {
-  hex <- "#0390fc"
-  type <- if (str_detect(metric, "casos")) "casos de" else "mortes por"
-  new_type <- if (str_detect(metric, '^casos_novos')) "novos " else if (str_detect(metric, '^obitos_novos')) "novas "
+# **Dados mais recentes (por estado)**
+
+Sempre que o gráfico representar novos casos ou óbitos, os dados serão do último dia liberado pelo Ministério da Saúde. Do contrário, os dados são cumulativos.
+
+*Cada gráfico tem sua própria escala.
+
+```{r plot_covid, fig.height=38}
+plot_covid <- function(.data, metric) {
+  palette <- c("#5E74C2", "#C25E5D", "#54BCC3", "#C24CAB", "#735BC2")
+  type <- if (str_detect(metric, "casos")) "casos de" else "óbitos por"
+  new_type <- if (str_detect(metric, 'novos')) "novos "
   is_prop <- if (str_detect(metric, "_prop")) ", a cada 1 milhão de habitantes"
   
-  ggplot(data, aes(uf, data[[metric]])) + geom_col(fill=hex) +
-    geom_text(aes(label=th(round(data[[metric]], digits=1)))
-              , vjust=-1, color=hex) + coord_cartesian(clip = "off") +
-  remove_lines + labs(x="", y="", title=paste0(new_type, type, " Covid-19 no Brasil"),
+  ggplot(.data, aes(fct_reorder(uf, regiao), .data[[metric]], fill=regiao, color=regiao)) + geom_col() +
+    geom_text(aes(label=th(round(.data[[metric]], digits=1))), vjust=-1) + coord_cartesian(clip = "off") +
+  remove_lines + labs(x="", y="", fill=NULL, color=NULL,
+                      title=paste0(new_type, type, " Covid-19 no Brasil"),
                       subtitle=paste0('por estado', is_prop)) +
-    scale_y_continuous(labels=function(x) th(x))
+    scale_y_continuous(labels=function(x) th(x)) +
+    scale_fill_manual(values=palette) + scale_color_manual(values=palette)
 }
 
-covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>% group_by(uf, pop) %>% summarize_prop()
+covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>% group_by(regiao, uf, pop) %>% summarize_prop() %>% ungroup()
 
-cols <- names(select(covid_prop, uf:casos_prop, obitos_prop, everything()))[-1:-2]
+cols <- names(select(covid_prop, casos, obitos, casos_prop, obitos_prop, casos_novos:obitos_novos_prop))
 cols <- set_names(cols)
 
 wrap_plots(map(cols, ~plot_covid(covid_prop, .)), ncol=1) +
-  labs(caption=paste0("fonte: Ministério da Saúde. Atualizado em ", format(today(), '%D%y')))
+  labs(caption=paste0("dados por Ministério da Saúde e atualizados em ", format(today(), '%D%y'))) &
+  theme(legend.position = 'top')
 ```
 
