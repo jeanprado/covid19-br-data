@@ -17,13 +17,15 @@ library(patchwork)
 
 ```{r load_data, include=FALSE, cache=TRUE}
 url <- paste0('https://covid.saude.gov.br/assets/files/COVID19_', format(today(), "%Y%m%d"), '.csv')
-url <- 'https://mobileapps.saude.gov.br/esus-vepi/files/unAFkcaNDeXajurGB7LChj8SgQYS2ptm/89855f6071621391a2ae420824458ac6_Download_COVID19_20200403.csv'
+url <- 'https://mobileapps.saude.gov.br/esus-vepi/files/unAFkcaNDeXajurGB7LChj8SgQYS2ptm/b7d2591790c7eee6abf3842983a46d92_Download_COVID19_20200404.csv'
 
 covid <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=dmy(data)) %>% rename(uf=estado,
                                                                casos=casos_acumulados,
                                                                obitos=obitos_acumulados) %>% 
-  left_join(read_csv('pop_br_2019.csv') %>% group_by(uf) %>%
+  left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
+
+covid %>% write_csv(paste0('data/', str_extract(url, 'COVID19_\\d{1,8}\\.csv')))
 
 remove_lines <- theme_minimal() +
   theme(panel.grid.minor = ggplot2::element_blank(),
