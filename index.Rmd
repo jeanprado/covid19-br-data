@@ -1,7 +1,7 @@
 ---
-title: "Dados sobre Covid-19 no Brasil"
-author: "por Jean Prado"
-date: "`r paste0('*atualizado em ', tolower(format(Sys.time(), format='%d/%m%y às %Hh%M*')))`"
+title: "dados sobre Covid-19 no Brasil"
+author: "por Jean Prado (<a href='https://twitter.com/jeangprado'>@jeangprado</a>)"
+date: "`r paste0('*atualizado em ', tolower(format(Sys.time(), format='%d/%m/%Y às %Hh%M*')))`"
 output:
   html_document:
     theme: cosmo
@@ -89,7 +89,7 @@ covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>%
         labs(x=NULL, y=NULL, color=NULL, title=tolower(unique(.[["regiao"]])))) %>% wrap_plots(ncol=1)
 ```
 
-# **casos e Letalidade (por região)**
+# **casos e letalidade (por região)**
 ```{r plot_region, fig.height=4}
 plot_region <- function(var) {
   add_label <- if(var=='Letalidade') {
@@ -139,7 +139,8 @@ plot_covid <- function(.data, metric) {
     scale_fill_manual(values=region_palette) + scale_color_manual(values=region_palette) + add_label
 }
 
-covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>% group_by(regiao, uf, pop) %>% summarize_prop() %>% ungroup()
+covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>% group_by(regiao, uf, pop) %>% summarize_prop() %>%
+  ungroup() %>% mutate(regiao=tolower(regiao))
 
 cols <- names(select(covid_prop, letalidade, casos, obitos, casos_prop, obitos_prop, casos_novos:obitos_novos_prop))
 cols <- set_names(cols)
