@@ -82,7 +82,7 @@ covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>%
 ```
 
 # **Casos e Letalidade (por região)**
-```{r plot_region, fig.height=8}
+```{r plot_region, fig.height=4}
 plot_region <- function(var) {
   add_label <- if(var=='Letalidade') {
     list(geom_text(aes(label=paste0(format(n*100, digits=2, big.mark=".", decimal.mark=","), "%")), vjust=-1),
