@@ -75,8 +75,8 @@ covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>% group_by(regiao) %>% group_split() %>% 
   map(~ggplot(., aes(data, casos_novos, color=uf)) + time_series() +
         scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") +
-        scale_color_manual(values=rev(c("#ff5656", "#fd8557", "#fcb457", "#e2f556",
-                                    "#83eb53", "#4ddb70", "#45c4ac", "#3b7fa7", "#303687")),
+        scale_color_manual(values=rev(c("#FF5656", "#FD8557", "#FFB226", "#B2E456",
+                                    "#9EF5EA", "#35DB70", "#45C49F", "#3B7FA7", "#303687")),
                            guide=guide_legend(override.aes = list(shape='square', size=6))) +
         labs(x=NULL, y=NULL, color=NULL, title=unique(.[["regiao"]]))) %>% wrap_plots(ncol=1)
 ```
