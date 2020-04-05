@@ -1,30 +1,34 @@
 ---
 title: "Dados sobre Covid-19 no Brasil"
 author: "por Jean Prado"
-date: "`r paste0('*atualizado em ', tolower(format(Sys.time(), format='%D%y às %Hh%M*')))`"
+date: "`r paste0('*atualizado em ', tolower(format(Sys.time(), format='%d/%m%y às %Hh%M*')))`"
 output:
   html_document:
     theme: cosmo
 ---
 
 ```{r setup, include=FALSE}
+Sys.setlocale("LC_TIME", "pt_BR.UTF-8")
 knitr::opts_chunk$set(echo = FALSE, fig.width=10)
 
 library(tidyverse)
 library(lubridate)
 library(patchwork)
+library(httr)
 ```
 
 ```{r load_data, include=FALSE, cache=TRUE}
-url <- paste0('https://covid.saude.gov.br/assets/files/COVID19_', format(today(), "%Y%m%d"), '.csv')
-url <- 'https://mobileapps.saude.gov.br/esus-vepi/files/unAFkcaNDeXajurGB7LChj8SgQYS2ptm/b7d2591790c7eee6abf3842983a46d92_Download_COVID19_20200404.csv'
+url <- content(httr::GET('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral', accept_json(),
+                        add_headers(`x-parse-application-id` = "unAFkcaNDeXajurGB7LChj8SgQYS2ptm")))[["results"]][[1]][["arquivo"]]$url
 
-covid <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=dmy(data)) %>%
-  rename(uf=estado, casos=casos_acumulados, obitos=obitos_acumulados) %>% 
+covid <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=dmy(date)) %>%
+  rename(uf=estadi, casos=casos_acumulados, obitos=obitos_acumulados) %>% 
   left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
 
-covid %>% write_csv(paste0('data/', str_extract(url, 'COVID19_\\d{1,8}\\.csv')))
+covid %>% write_csv(paste0('data/', str_extract(url, 'COVID19_\\d{8}'), '.csv'))
+
+last_update <- first(covid$data)
 
 remove_lines <- theme_minimal() +
   theme(panel.grid.minor = ggplot2::element_blank(),
@@ -50,7 +54,10 @@ region_palette <- c("#5E74C2", "#C25E5D", "#54BCC3", "#C24CAB", "#735BC2")
 ```
 
 
-# **Evolução dos casos**
+# **evolução dos casos**
+
+*últimos dados liberados pelo Ministério da Saúde em `r trimws(tolower(format(last_update, '%e de %B de %Y')))`.
+
 ```{r time_series, fig.height=6}
 covid %>% group_by(data) %>% summarize_casos() %>%  
   pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>%
@@ -61,15 +68,16 @@ covid %>% group_by(data) %>% summarize_casos() %>%
                 aes(label=th(round(n, digits=1))), vjust=-1, size=3.5) + coord_cartesian(clip = "off") +
       scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
       scale_color_manual(values=c("#FF5656", "#F18853", "#E4B250", "#873053"),
-                         labels=c(obitos="Óbitos", casos="Casos", casos_novos="Novos casos", obitos_novos="Novos óbitos"),
+                         labels=c(obitos="óbitos", casos="casos",
+                                  casos_novos="novos casos", obitos_novos="novos óbitos"),
                          guide=guide_legend(override.aes = list(shape='square', size=6))) }
 ```
 
-# **Novos casos por estado e região**
+# **novos casos por estado e região**
 
-Esses gráficos focam no **crescimento diário do número de casos**, não no crescimento total. Por isso, representam o número de novos casos em relação ao dia anterior.
+esses gráficos focam no **crescimento diário do número de casos**, não no crescimento total. Por isso, representam o número de novos casos em relação ao dia anterior.
 
-*Os gráficos de cada região estão em escalas diferentes.
+*os gráficos de cada região estão em escalas diferentes.
 ```{r time_series_uf, fig.height=18}
 covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>% 
   filter(data %in% seq(today()-21, today(), by=1)) %>% group_by(regiao) %>% group_split() %>% 
@@ -78,10 +86,10 @@ covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>%
         scale_color_manual(values=rev(c("#FF5656", "#FD8557", "#FFB226", "#B2E456",
                                     "#9EF5EA", "#35DB70", "#45C49F", "#3B7FA7", "#303687")),
                            guide=guide_legend(override.aes = list(shape='square', size=6))) +
-        labs(x=NULL, y=NULL, color=NULL, title=unique(.[["regiao"]]))) %>% wrap_plots(ncol=1)
+        labs(x=NULL, y=NULL, color=NULL, title=tolower(unique(.[["regiao"]])))) %>% wrap_plots(ncol=1)
 ```
 
-# **Casos e Letalidade (por região)**
+# **casos e Letalidade (por região)**
 ```{r plot_region, fig.height=4}
 plot_region <- function(var) {
   add_label <- if(var=='Letalidade') {
@@ -97,18 +105,18 @@ plot_region <- function(var) {
     filter(type==var) %>% ggplot(aes(regiao, n, fill=regiao, color=regiao)) +
     geom_col() + coord_cartesian(clip='off') + add_label +
     remove_lines + labs(x="", y="") + guides(fill=F, color=F) + theme(legend.position='top') +
-    scale_fill_manual(values=region_palette) + scale_color_manual(values=region_palette) + ggtitle(var)
+    scale_fill_manual(values=region_palette) + scale_color_manual(values=region_palette) + ggtitle(tolower(var))
 }
 
 wrap_plots(map(c('Casos', 'Letalidade'), ~plot_region(.)), ncol=2)
 ```
 
 
-# **Dados mais recentes (por estado)**
+# **dados mais recentes (por estado)**
 
-Aqui, sempre que o gráfico representar novos casos ou óbitos, os dados serão do último dia liberado pelo Ministério da Saúde. Do contrário, os dados são cumulativos.
+aqui, sempre que o gráfico representar novos casos ou óbitos, os dados serão do último dia liberado pelo Ministério da Saúde. Do contrário, os dados são cumulativos.
 
-*Cada gráfico tem sua própria escala.
+*cada gráfico tem sua própria escala.
 
 ```{r plot_covid, fig.height=42}
 plot_covid <- function(.data, metric) {
@@ -137,7 +145,8 @@ cols <- names(select(covid_prop, letalidade, casos, obitos, casos_prop, obitos_p
 cols <- set_names(cols)
 
 wrap_plots(map(cols, ~plot_covid(covid_prop, .)), ncol=1) +
-  labs(caption=paste0("dados por Ministério da Saúde e atualizados em ", format(today(), '%D%y'))) &
+  labs(caption=paste0("dados via Ministério da Saúde e atualizados em ",
+                      trimws(tolower(format(last_update, '%e de %B de %Y'))))) &
   theme(legend.position = 'top')
 ```
 
