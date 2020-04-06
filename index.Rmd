@@ -21,8 +21,9 @@ library(httr)
 url <- content(httr::GET('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral', accept_json(),
                         add_headers(`x-parse-application-id` = "unAFkcaNDeXajurGB7LChj8SgQYS2ptm")))[["results"]][[1]][["arquivo"]]$url
 
-covid <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=dmy(date)) %>%
-  rename(uf=estadi, casos=casos_acumulados, obitos=obitos_acumulados) %>% 
+covid <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=as_date(data, origin="1899-12-30"),
+                                                              regiao=tolower(regiao)) %>%
+  rename(uf=estado, casos=casos_acumulados, obitos=obitos_acumulados) %>%
   left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
 
@@ -75,7 +76,7 @@ covid %>% group_by(data) %>% summarize_casos() %>%
 
 # **novos casos por estado e região**
 
-esses gráficos focam no **crescimento diário do número de casos**, não no crescimento total. Por isso, representam o número de novos casos em relação ao dia anterior.
+esses gráficos focam no **crescimento diário do número de casos**, não no crescimento total. por isso, representam o número de novos casos em relação ao dia anterior.
 
 *os gráficos de cada região estão em escalas diferentes.
 ```{r time_series_uf, fig.height=18}
@@ -86,7 +87,7 @@ covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>%
         scale_color_manual(values=rev(c("#FF5656", "#FD8557", "#FFB226", "#B2E456",
                                     "#9EF5EA", "#35DB70", "#45C49F", "#3B7FA7", "#303687")),
                            guide=guide_legend(override.aes = list(shape='square', size=6))) +
-        labs(x=NULL, y=NULL, color=NULL, title=tolower(unique(.[["regiao"]])))) %>% wrap_plots(ncol=1)
+        labs(x=NULL, y=NULL, color=NULL, title=unique(.[["regiao"]]))) %>% wrap_plots(ncol=1)
 ```
 
 # **casos e letalidade (por região)**
@@ -114,11 +115,11 @@ wrap_plots(map(c('Casos', 'Letalidade'), ~plot_region(.)), ncol=2)
 
 # **dados mais recentes (por estado)**
 
-aqui, sempre que o gráfico representar novos casos ou óbitos, os dados serão do último dia liberado pelo Ministério da Saúde. Do contrário, os dados são cumulativos.
+aqui, sempre que o gráfico representar novos casos ou óbitos, os dados serão do último dia liberado pelo Ministério da Saúde. do contrário, os dados são cumulativos.
 
 *cada gráfico tem sua própria escala.
 
-```{r plot_covid, fig.height=42}
+```{r plot_state, fig.height=42}
 plot_covid <- function(.data, metric) {
   type <- if (str_detect(metric, "casos")) "casos de" else if(metric=='letalidade') "letalidade do" else "óbitos por"
   new_type <- if (str_detect(metric, 'novos')) "novos "
@@ -139,8 +140,8 @@ plot_covid <- function(.data, metric) {
     scale_fill_manual(values=region_palette) + scale_color_manual(values=region_palette) + add_label
 }
 
-covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>% group_by(regiao, uf, pop) %>% summarize_prop() %>%
-  ungroup() %>% mutate(regiao=tolower(regiao))
+covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>%
+  group_by(regiao, uf, pop) %>% summarize_prop() %>% ungroup()
 
 cols <- names(select(covid_prop, letalidade, casos, obitos, casos_prop, obitos_prop, casos_novos:obitos_novos_prop))
 cols <- set_names(cols)
