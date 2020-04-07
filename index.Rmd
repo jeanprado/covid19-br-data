@@ -21,9 +21,9 @@ library(httr)
 url <- content(httr::GET('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral', accept_json(),
                         add_headers(`x-parse-application-id` = "unAFkcaNDeXajurGB7LChj8SgQYS2ptm")))[["results"]][[1]][["arquivo"]]$url
 
-covid <- read_csv2(url) %>% janitor::clean_names() %>% mutate(data=as_date(data, origin="1899-12-30"),
-                                                              regiao=tolower(regiao)) %>%
-  rename(uf=estado, casos=casos_acumulados, obitos=obitos_acumulados) %>%
+covid <- read_csv2(url, locale=locale(encoding="Latin1")) %>% janitor::clean_names() %>%
+  rename(uf=2, data=3, casos=casos_acumulados, obitos=obitos_acumulados) %>%
+  mutate(data=dmy(data), regiao=tolower(regiao)) %>%
   left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
 
