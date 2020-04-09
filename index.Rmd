@@ -45,8 +45,8 @@ summarize_casos <- function(.data) .data %>%
             casos_novos=sum(casos_novos), obitos_novos=sum(obitos_novos)) %>% mutate(letalidade=obitos/casos)
 
 summarize_prop <- function(.data) .data %>% summarize_casos() %>% 
-  mutate(casos_prop=casos/pop*1000000, casos_novos_prop=casos_novos/pop*1000000,
-         obitos_novos_prop=obitos_novos/pop*1000000, obitos_prop=obitos/pop*1000000)
+  mutate(casos_prop=casos/pop*100000, casos_novos_prop=casos_novos/pop*100000,
+         obitos_novos_prop=obitos_novos/pop*100000, obitos_prop=obitos/pop*100000)
 
 time_series <- function() list(geom_line(show.legend = F), geom_point(), remove_lines, labs(color=NULL),
                                theme(legend.position='top'), scale_y_continuous(labels=function(x) th(x)))
@@ -65,7 +65,7 @@ covid %>% group_by(data) %>% summarize_casos() %>%
   mutate(type=fct_relevel(type, 'obitos', 'casos', 'casos_novos', 'obitos_novos')) %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>%
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
-      geom_text(data=filter(., type %in% c('casos_novos', 'casos'), n>=200),
+      geom_text(data=filter(., type %in% c('casos_novos', 'casos') | type == "obitos" & n>600, n>300),
                 aes(label=th(round(n, digits=1))), vjust=-1, size=3.5) + coord_cartesian(clip = "off") +
       scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
       scale_color_manual(values=c("#FF5656", "#F18853", "#E4B250", "#873053"),
@@ -123,7 +123,7 @@ aqui, sempre que o gráfico representar novos casos ou óbitos, os dados serão 
 plot_covid <- function(.data, metric) {
   type <- if (str_detect(metric, "casos")) "casos de" else if(metric=='letalidade') "letalidade do" else "óbitos por"
   new_type <- if (str_detect(metric, 'novos')) "novos "
-  is_prop <- if (str_detect(metric, "_prop")) ", a cada 1 milhão de habitantes"
+  is_prop <- if (str_detect(metric, "_prop")) ", a cada 100 mil habitantes"
   add_label <- if(metric=='letalidade') {
     list(geom_text(aes(label=paste0(format(.data[[metric]]*100, digits=2,
                                            big.mark=".", decimal.mark=","), "%")), vjust=-1, size=3.5),
