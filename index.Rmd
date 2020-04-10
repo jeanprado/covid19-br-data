@@ -45,8 +45,7 @@ summarize_casos <- function(.data) .data %>%
             casos_novos=sum(casos_novos), obitos_novos=sum(obitos_novos)) %>% mutate(letalidade=obitos/casos)
 
 summarize_prop <- function(.data) .data %>% summarize_casos() %>% 
-  mutate(casos_prop=casos/pop*100000, casos_novos_prop=casos_novos/pop*100000,
-         obitos_novos_prop=obitos_novos/pop*100000, obitos_prop=obitos/pop*100000)
+  mutate(casos_prop=casos/pop*100000, obitos_prop=obitos/pop*100000)
 
 time_series <- function() list(geom_line(show.legend = F), geom_point(), remove_lines, labs(color=NULL),
                                theme(legend.position='top'), scale_y_continuous(labels=function(x) th(x)))
@@ -119,7 +118,7 @@ aqui, sempre que o gráfico representar novos casos ou óbitos, os dados serão 
 
 *cada gráfico tem sua própria escala.
 
-```{r plot_state, fig.height=42}
+```{r plot_state, fig.height=36}
 plot_covid <- function(.data, metric) {
   type <- if (str_detect(metric, "casos")) "casos de" else if(metric=='letalidade') "letalidade do" else "óbitos por"
   new_type <- if (str_detect(metric, 'novos')) "novos "
@@ -143,7 +142,7 @@ plot_covid <- function(.data, metric) {
 covid_prop <- covid %>% filter(data==first(covid[["data"]])) %>%
   group_by(regiao, uf, pop) %>% summarize_prop() %>% ungroup()
 
-cols <- names(select(covid_prop, letalidade, casos, obitos, casos_prop, obitos_prop, casos_novos:obitos_novos_prop))
+cols <- names(select(covid_prop, 8, 4, 5, 9, 10, 6, 7))
 cols <- set_names(cols)
 
 wrap_plots(map(cols, ~plot_covid(covid_prop, .)), ncol=1) +
