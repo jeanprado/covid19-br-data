@@ -21,8 +21,8 @@ library(httr)
 url <- content(httr::GET('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com/prod/PortalGeral', accept_json(),
                         add_headers(`x-parse-application-id` = "unAFkcaNDeXajurGB7LChj8SgQYS2ptm")))[["results"]][[1]][["arquivo"]]$url
 
-covid <- read_csv2(url, locale=locale(encoding="Latin1")) %>% janitor::clean_names() %>%
-  rename(uf=2, data=3, casos=casos_acumulados, obitos=obitos_acumulados) %>%
+covid <- read_csv2(url, locale=locale(encoding="Latin1")) %>% 
+  rename(regiao=1, uf=2, data=3, casos_novos=4, casos=5, obitos_novos=6, obitos=7) %>%
   mutate(data=dmy(data), regiao=tolower(regiao)) %>%
   left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
@@ -65,7 +65,7 @@ covid %>% group_by(data) %>% summarize_casos() %>%
   mutate(type=fct_relevel(type, 'obitos', 'casos', 'casos_novos', 'obitos_novos')) %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>%
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
-      geom_text(data=filter(., type %in% c('casos_novos', 'casos') | type == "obitos" & n>600, n>300),
+      geom_text(data=filter(., type %in% c('casos_novos', 'casos'), n>300),
                 aes(label=th(round(n, digits=1))), vjust=-1, size=3.5) + coord_cartesian(clip = "off") +
       scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
       scale_color_manual(values=c("#FF5656", "#F18853", "#E4B250", "#873053"),
