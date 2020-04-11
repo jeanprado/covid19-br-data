@@ -59,7 +59,7 @@ region_palette <- c("#5E74C2", "#C25E5D", "#54BCC3", "#C24CAB", "#735BC2")
 
 *gráfico em [escala logarítmica](https://escoladedados.org/2020/04/escalas-lineares-ou-nao-lineares-por-que-nao-ambas/). últimos dados liberados pelo Ministério da Saúde em `r trimws(tolower(format(last_update, '%e de %B de %Y')))`.
 
-```{r time_series, fig.height=8}
+```{r time_series, fig.height=6}
 covid %>% group_by(data) %>% summarize_casos() %>%  
   pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>% 
