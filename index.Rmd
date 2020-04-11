@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = FALSE, fig.width=10)
 library(tidyverse)
 library(lubridate)
 library(patchwork)
+library(ggrepel)
 library(httr)
 ```
 
@@ -47,8 +48,8 @@ summarize_casos <- function(.data) .data %>%
 summarize_prop <- function(.data) .data %>% summarize_casos() %>% 
   mutate(casos_prop=casos/pop*100000, obitos_prop=obitos/pop*100000)
 
-time_series <- function() list(geom_line(show.legend = F), geom_point(), remove_lines, labs(color=NULL),
-                               theme(legend.position='top'), scale_y_continuous(labels=function(x) th(x)))
+time_series <- function() list(geom_line(), geom_point(), remove_lines, labs(color=NULL),
+                               theme(legend.position='top'))
 
 region_palette <- c("#5E74C2", "#C25E5D", "#54BCC3", "#C24CAB", "#735BC2")
 ```
@@ -56,21 +57,23 @@ region_palette <- c("#5E74C2", "#C25E5D", "#54BCC3", "#C24CAB", "#735BC2")
 
 # **evolução dos casos**
 
-*últimos dados liberados pelo Ministério da Saúde em `r trimws(tolower(format(last_update, '%e de %B de %Y')))`.
+*gráfico em [escala logarítmica](https://escoladedados.org/2020/04/escalas-lineares-ou-nao-lineares-por-que-nao-ambas/). últimos dados liberados pelo Ministério da Saúde em `r trimws(tolower(format(last_update, '%e de %B de %Y')))`.
 
-```{r time_series, fig.height=6}
+```{r time_series, fig.height=8}
 covid %>% group_by(data) %>% summarize_casos() %>%  
   pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>%
-  mutate(type=fct_relevel(type, 'obitos', 'casos', 'casos_novos', 'obitos_novos')) %>%
-  filter(data %in% seq(today()-21, today(), by=1)) %>%
+  filter(data %in% seq(today()-21, today(), by=1)) %>% 
+  mutate(type=fct_relevel(type, 'obitos', 'casos', 'casos_novos', 'obitos_novos'),
+         close=between(n-lag(n, default=1), -100, 0)) %>% 
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
-      geom_text(data=filter(., type %in% c('casos_novos', 'casos'), n>300),
-                aes(label=th(round(n, digits=1))), vjust=-1, size=3.5) + coord_cartesian(clip = "off") +
+      scale_y_log10(labels=function(x) th(x)) + coord_cartesian(clip = "off") +
+      geom_text(aes(label=th(round(n, digits=1))),
+                vjust=ifelse(.["close"] == T, 2, -1.5), hjust=.65, size=3) + 
       scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
       scale_color_manual(values=c("#FF5656", "#F18853", "#E4B250", "#873053"),
                          labels=c(obitos="óbitos", casos="casos",
                                   casos_novos="novos casos", obitos_novos="novos óbitos"),
-                         guide=guide_legend(override.aes = list(shape='square', size=6))) }
+                         guide=guide_legend(override.aes = list(shape='square', size=6)))}
 ```
 
 # **novos casos por estado e região**
@@ -83,6 +86,7 @@ covid %>% group_by(regiao, data, uf, pop) %>% summarize_prop() %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>% group_by(regiao) %>% group_split() %>% 
   map(~ggplot(., aes(data, casos_novos, color=uf)) + time_series() +
         scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") +
+        scale_y_continuous(labels=function(x) th(x)) +
         scale_color_manual(values=rev(c("#FF5656", "#FD8557", "#FFB226", "#B2E456",
                                     "#9EF5EA", "#35DB70", "#45C49F", "#3B7FA7", "#303687")),
                            guide=guide_legend(override.aes = list(shape='square', size=6))) +
