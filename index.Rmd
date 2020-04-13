@@ -39,7 +39,7 @@ w_covid <- read_csv('https://covid.ourworldindata.org/data/ecdc/full_data.csv') 
                                 deaths_prop_1=cumsum(ifelse(deaths_prop>=1, T, F))-1) %>%
   ungroup() %>% mutate_at(vars(11:14), ~na_if(., -1))
 
-w_covid %>% write_csv('data/world-data.csv')
+w_covid %>% write_csv('data/world-data.csv', na="")
 
 w_covid <- w_covid %>% 
   mutate(continent=str_replace_all(continent, c("Asia"="Ásia", "Europe"="Europa",
