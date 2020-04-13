@@ -150,7 +150,7 @@ deaths_comparison <- w_covid %>% filter(deaths_5==br_data$deaths_5, !is.na(conti
 deaths_countries <- paste0('**', deaths_comparison$location, '** (', trimws(th(deaths_comparison$total_deaths)), ')')
 ```
 
-**óbitos**: no **`r br_data$deaths_5`º dia desde o 5º óbito**, o Brasil tem **`r th(br_data$total_deaths)` casos confirmados de Covid-19**. para comparação, os **5 países com mais mortes no mundo** tinham, neste período, esse número de óbitos: `r  deaths_countries`.
+**óbitos**: no **`r br_data$deaths_5`º dia desde o 5º óbito**, o Brasil tem **`r th(br_data$total_deaths)` óbitos decorrentes de Covid-19**. para comparação, os **5 países com mais mortes no mundo** tinham, neste período, esse número de óbitos: `r  deaths_countries`.
 
 ```{r world_deaths, fig.height=6, message=FALSE, warning=FALSE}
 plot_world(deaths_5, total_deaths, "brasil e mundo: dias desde o 5º óbito")
