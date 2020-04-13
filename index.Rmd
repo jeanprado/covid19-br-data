@@ -37,7 +37,11 @@ w_covid <- read_csv('https://covid.ourworldindata.org/data/ecdc/full_data.csv') 
                                 deaths_5=cumsum(ifelse(total_deaths>=5, T, F))-1,
                                 cases_prop_1=cumsum(ifelse(cases_prop>=1, T, F))-1,
                                 deaths_prop_1=cumsum(ifelse(deaths_prop>=1, T, F))-1) %>%
-  ungroup() %>% mutate_at(vars(10:13), ~na_if(., -1)) %>% 
+  ungroup() %>% mutate_at(vars(11:14), ~na_if(., -1))
+
+w_covid %>% write_csv('data/world-data.csv')
+
+w_covid <- w_covid %>% 
   mutate(continent=str_replace_all(continent, c("Asia"="Ásia", "Europe"="Europa",
                                                 "North America"="América do Norte")),
          location=str_replace_all(location, c("United States"="Estados Unidos", "Spain"="Espanha",
@@ -123,7 +127,7 @@ w_covid %>% filter(location %in% c('Estados Unidos', 'Espanha', 'Itália', 'Alem
   remove_lines + theme(legend.position='top', title=element_text(size=12)) +
   scale_x_continuous(n.breaks=10) + labs(x="", y="", color="", title="brasil e mundo: dias desde o 100º caso") +
   geom_text_repel(data=. %>% filter(date==last(date), location!="brasil"), aes(label=location),
-                  vjust=.4, hjust=-.8, segment.size=NA, seed=0) + guides(size=F, alpha=F) +
+                  vjust=.2, hjust=-.5, segment.size=NA, seed=0) + guides(size=F, alpha=F) +
   scale_alpha_continuous(range=c(.25, 1)) + geom_point(data=. %>% filter(date==last(date))) +
   geom_text(data=. %>% filter(date==last(date), location=="brasil"), aes(label=location),
                   vjust=-.5, size=4.4, fontface='bold') + scale_size_continuous(range=c(.5, 1.25)) +
