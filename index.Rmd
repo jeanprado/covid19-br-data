@@ -28,6 +28,25 @@ covid <- read_csv2(url, locale=locale(encoding="Latin1")) %>%
   left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
 
+w_covid <- read_csv('https://covid.ourworldindata.org/data/ecdc/full_data.csv') %>% 
+  left_join(read_csv('https://covid.ourworldindata.org/data/ecdc/locations.csv') %>%
+              select(-1, -4), by="location") %>% 
+  mutate(cases_prop=total_cases/population*1e6,
+         deaths_prop=total_deaths/population*1e6) %>% select(1:2, 7, population, everything()) %>% 
+  group_by(location) %>% mutate(cases_100=cumsum(ifelse(total_cases>=100, T, F))-1,
+                                deaths_5=cumsum(ifelse(total_deaths>=5, T, F))-1,
+                                cases_prop_1=cumsum(ifelse(cases_prop>=1, T, F))-1,
+                                deaths_prop_1=cumsum(ifelse(deaths_prop>=1, T, F))-1) %>%
+  ungroup() %>% mutate_at(vars(10:13), ~na_if(., -1)) %>% 
+  mutate(continent=str_replace_all(continent, c("Asia"="Ásia", "Europe"="Europa",
+                                                "North America"="América do Norte")),
+         location=str_replace_all(location, c("United States"="Estados Unidos", "Spain"="Espanha",
+                                                "Italy"="Itália", "Germany"="Alemanha",
+                                               "France"="França", "United Kingdom"="Reino Unido",
+                                               "Iran"="Irã", "Turkey"="Turquia",
+                                               "Belgium"="Bélgica", "Netherlands"="Holanda",
+                                               "Canada"="Canadá", "Brazil"="Brasil")))
+
 covid %>% write_csv(paste0('data/', str_extract(url, 'COVID19_\\d{8}'), '.csv'))
 
 last_update <- first(covid$data)
@@ -39,7 +58,7 @@ remove_lines <- theme_minimal() +
         text=element_text(family="Helvetica", size=11),
         title=element_text(family="Helvetica", size=14))
 
-th <- function(x) format(x, big.mark=".", decimal.mark=",")
+th <- function(x) format(x, big.mark=".", decimal.mark=",", scientific=F)
 
 summarize_casos <- function(.data) .data %>%
   summarize(casos=sum(casos), obitos=sum(obitos), 
@@ -76,6 +95,46 @@ covid %>% group_by(data) %>% summarize_casos() %>%
                          labels=c(obitos="óbitos", casos="casos",
                                   casos_novos="novos casos", obitos_novos="novos óbitos"),
                          guide=guide_legend(override.aes = list(shape='square', size=6)))}
+```
+
+# **brasil e mundo**
+
+```{r comparison, include=FALSE}
+br_cases <- w_covid %>% filter(date==last(date), location=="Brasil") %>% arrange(desc(total_cases))
+
+top_countries <- w_covid %>% filter(cases_100==br_cases$cases_100, !is.na(continent)) %>% 
+  arrange(desc(total_cases)) %>% head(5)
+
+text_countries <- paste0('**', top_countries$location, '** (', trimws(th(top_countries$total_cases)), ')')
+```
+
+no **`r br_cases$cases_100`º dia desde o 100º caso**, o Brasil tem **`r th(br_cases$total_cases)` casos confirmados de Covid-19**. para comparação, os **5 países com mais casos no mundo** tinham, neste período, esse número de casos: `r  text_countries`.
+
+abaixo, a comparação entre brasil e mundo no número de casos. *gráfico em escala logarítmica. fonte: [Our World in Data](https://ourworldindata.org/coronavirus-source-data). os dados podem estar um dia ou dois atrasados porque o site demora para consolidar.
+
+```{r world_cases, fig.height=6, message=FALSE, warning=FALSE}
+w_covid %>% filter(location %in% c('Estados Unidos', 'Espanha', 'Itália', 'Alemanha', 'França', 'China',
+                                   'Reino Unido', 'Irã', 'Turquia', 'Bélgica', 'Holanda', 'Canadá', 'Brasil')) %>% 
+  mutate(location=tolower(location), continent=tolower(continent),
+         br_color=fct_relevel(ifelse(location=="brasil", 'brasil', continent), 'brasil', after=0),
+         is_br=ifelse(location=="brasil", 1, 0)) %>% 
+  ggplot(aes(cases_100, total_cases, group=location, color=br_color)) +
+  geom_line(aes(size=is_br, alpha=is_br)) + scale_y_log10(limits=c(100, 10e5), labels=function(x) th(x)) +
+  remove_lines + theme(legend.position='top', title=element_text(size=12)) +
+  scale_x_continuous(n.breaks=10) + labs(x="", y="", color="", title="brasil e mundo: dias desde o 100º caso") +
+  geom_text_repel(data=. %>% filter(date==last(date), location!="brasil"), aes(label=location),
+                  vjust=.4, hjust=-.8, segment.size=NA, seed=0) + guides(size=F, alpha=F) +
+  scale_alpha_continuous(range=c(.25, 1)) + geom_point(data=. %>% filter(date==last(date))) +
+  geom_text(data=. %>% filter(date==last(date), location=="brasil"), aes(label=location),
+                  vjust=-.5, size=4.4, fontface='bold') + scale_size_continuous(range=c(.5, 1.25)) +
+  scale_color_manual(values=c("#FF597D", "#56BAE8", "#5EA2FF", "#49CFF6"),
+                     guide=guide_legend(override.aes = list(shape='square', size=6)))
+```
+
+```{r table_deaths, include=FALSE}
+# no **`r br_cases$deaths_5`º dia** desde o 5º óbito, o Brasil tem **`r th(br_cases$total_deaths)` óbitos decorrente da Covid-19**. para comparação, os **5 países com mais mortes no mundo** tinham, neste período, esse número de óbitos:
+
+# top_countries %>% arrange(desc(total_deaths)) %>% head(5) %>% select(location, date, total_deaths) %>% mutate(date=format(date, "%d/%m"), total_deaths=th(total_deaths)) %>% DT::datatable()
 ```
 
 # **novos casos por estado e região**
