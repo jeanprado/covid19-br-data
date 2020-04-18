@@ -92,7 +92,7 @@ covid %>% group_by(data) %>% summarize_casos() %>%
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
       scale_y_log10(labels=function(x) th(x)) + coord_cartesian(clip = "off") +
       geom_text(aes(label=th(round(n, digits=1))),
-                vjust=ifelse(.["close"] == T, 2, -1.5),
+                vjust=ifelse(.["close"] == T, 2, -1),
                 size=ifelse(.["type"] == "casos", 3, 3.25), hjust=.65) + 
       scale_x_date(breaks=unique(.[["data"]]), date_labels="%d/%m") + 
       scale_color_manual(values=c("#F18853", "#E4B250", "#FF5656", "#873053"),
