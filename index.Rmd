@@ -51,7 +51,7 @@ w_covid <- w_covid %>%
                                                "Belgium"="Bélgica", "Netherlands"="Holanda",
                                                "Canada"="Canadá", "Brazil"="Brasil")))
 
-covid %>% write_csv(paste0('data/', str_extract(url, 'COVID19_\\d{8}'), '.csv'))
+covid %>% write_csv('data/brazil-data.csv', na="")
 
 last_update <- first(covid$data)
 
@@ -88,7 +88,7 @@ covid %>% group_by(data) %>% summarize_casos() %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>%
   mutate(type=fct_relevel(type, 'casos', 'casos_novos', 'obitos', 'obitos_novos'),
          close=ifelse(type %in% c('casos_novos', 'obitos') & n>1e3,
-                      between(n-lead(n, default=1), -300, 300), FALSE)) %>% 
+                      between(n-lead(n, default=1), -600, 600), FALSE)) %>% 
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
       scale_y_log10(labels=function(x) th(x)) + coord_cartesian(clip = "off") +
       geom_text(aes(label=th(round(n, digits=1))),
