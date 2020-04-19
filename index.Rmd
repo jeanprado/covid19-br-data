@@ -24,7 +24,7 @@ url <- content(httr::GET('https://xx9p7hp1p7.execute-api.us-east-1.amazonaws.com
 
 covid <- read_csv2(url, locale=locale(encoding="Latin1")) %>% 
   rename(regiao=1, uf=2, data=3, casos_novos=4, casos=5, obitos_novos=6, obitos=7) %>%
-  mutate(data=ymd(data), regiao=tolower(regiao)) %>%
+  mutate(data=dmy(data), regiao=tolower(regiao)) %>%
   left_join(read_csv('data/pop_br_2019.csv') %>% group_by(uf) %>%
               summarise(pop=sum(pop)), by="uf") %>% arrange(desc(data))
 
