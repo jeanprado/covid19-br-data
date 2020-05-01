@@ -87,8 +87,9 @@ covid %>% group_by(data) %>% summarize_casos() %>%
   pivot_longer(casos:obitos_novos, values_to='n', names_to='type') %>%
   filter(data %in% seq(today()-21, today(), by=1)) %>%
   mutate(type=fct_relevel(type, 'casos', 'casos_novos', 'obitos', 'obitos_novos'),
-         close=ifelse(type %in% c('casos_novos', 'obitos') & n>1e3,
-                      between(n-lead(n, default=1), -600, 600), FALSE)) %>% 
+         # close=ifelse(type %in% c('casos_novos', 'obitos') & n>1e3,
+         #              between(n-lead(n, default=1), -1400, 1400), FALSE)) %>% 
+         close=ifelse(type=="obitos", T, F)) %>% 
   { ggplot(., aes(data, n, color=type)) + time_series() + labs(x="", y="") +
       scale_y_log10(labels=function(x) th(x)) + coord_cartesian(clip = "off") +
       geom_text(aes(label=th(round(n, digits=1))),
